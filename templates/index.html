@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Museum Art RAG System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .question-section {
+            padding: 30px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .question-form {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-group input, .form-group textarea, .form-group select {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group textarea:focus, .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .submit-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            white-space: nowrap;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .result-section {
+            padding: 30px;
+            display: none;
+        }
+
+        .answer-container {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-left: 5px solid #667eea;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .answer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .answer-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .confidence-badge {
+            background: #28a745;
+            color: white;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 14px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(40, 167, 69, 0.3);
+        }
+
+        .confidence-low {
+            background: #dc3545;
+            box-shadow: 0 2px 8px rgba(220, 53, 69, 0.3);
+        }
+
+        .confidence-medium {
+            background: #ffc107;
+            color: #333;
+            box-shadow: 0 2px 8px rgba(255, 193, 7, 0.3);
+        }
+
+        .answer-content {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            line-height: 1.8;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+
+        .answer-content h3, .answer-content h4 {
+            color: #667eea;
+            margin-bottom: 15px;
+            margin-top: 25px;
+        }
+
+        .answer-content h3:first-child {
+            margin-top: 0;
+        }
+
+        .answer-content p {
+            margin-bottom: 15px;
+        }
+
+        .answer-content ul, .answer-content ol {
+            margin-left: 20px;
+            margin-bottom: 15px;
+        }
+
+        .answer-content li {
+            margin-bottom: 8px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .stat-icon {
+            font-size: 24px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #6c757d;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .sources-section {
+            margin-top: 30px;
+        }
+
+        .sources-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 25px;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .sources-grid {
+            display: grid;
+            gap: 20px;
+        }
+
+        .source-item {
+            background: white;
+            border: 1px solid #e1e5e9;
+            border-radius: 12px;
+            padding: 25px;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+
+        .source-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border-color: #667eea;
+        }
+
+        .source-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #f1f3f4;
+        }
+
+        .source-file {
+            font-weight: 600;
+            color: #667eea;
+            font-size: 14px;
+            background: #f8f9fa;
+            padding: 5px 12px;
+            border-radius: 20px;
+        }
+
+        .source-score {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .source-content {
+            color: #495057;
+            line-height: 1.6;
+            font-size: 14px;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
+        }
+
+        .error-message {
+            background: linear-gradient(135deg, #f8d7da 0%, #f5c6cb 100%);
+            color: #721c24;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #f5c6cb;
+            margin-top: 20px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .highlight {
+            background: linear-gradient(120deg, #a8edea 0%, #fed6e3 100%);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+        }
+
+        .section-divider {
+            height: 2px;
+            background: linear-gradient(90deg, transparent 0%, #667eea 50%, transparent 100%);
+            margin: 30px 0;
+            border-radius: 1px;
+        }
+
+        @media (max-width: 768px) {
+            .question-form {
+                flex-direction: column;
+                gap: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 10px;
+            }
+            
+            .question-section, .result-section {
+                padding: 20px;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .answer-header {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ Museum Art RAG System</h1>
+            <p>Ask questions about museum art and exhibits using AI-powered knowledge retrieval</p>
+        </div>
+
+        <div class="main-content">
+            <div class="question-section">
+                <form id="questionForm" class="question-form">
+                    <div class="form-group">
+                        <label for="question">Your Question:</label>
+                        <textarea 
+                            id="question" 
+                            name="question" 
+                            placeholder="Ask about any museum art, exhibits, artists, or historical periods..."
+                            required
+                        ></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="topK">Number of Sources:</label>
+                        <select id="topK" name="topK">
+                            <option value="3">3 sources</option>
+                            <option value="5" selected>5 sources</option>
+                            <option value="8">8 sources</option>
+                            <option value="10">10 sources</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="submit-btn" id="submitBtn">
+                        Ask Question
+                    </button>
+                </form>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Searching knowledge base and generating answer...</p>
+                </div>
+            </div>
+
+            <div class="result-section" id="resultSection">
+                <div class="answer-container">
+                    <div class="answer-header">
+                        <h2 class="answer-title">
+                            📝 Generated Answer
+                        </h2>
+                        <span class="confidence-badge" id="confidenceBadge">High Confidence</span>
+                    </div>
+                    
+                    <div class="answer-content" id="answerContent">
+                        <!-- Structured answer will be inserted here -->
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-icon">⏱️</div>
+                            <div class="stat-value" id="generationTime">0.0s</div>
+                            <div class="stat-label">Generation Time</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">📚</div>
+                            <div class="stat-value" id="totalSources">0</div>
+                            <div class="stat-label">Sources Used</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">🎯</div>
+                            <div class="stat-value" id="confidencePercent">0%</div>
+                            <div class="stat-label">Confidence</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-icon">🔍</div>
+                            <div class="stat-value" id="searchTime">0.0s</div>
+                            <div class="stat-label">Search Time</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-divider"></div>
+
+                <div class="sources-section">
+                    <h3 class="sources-title">
+                        📖 Information Sources
+                        <span id="sourcesCount">(0 sources)</span>
+                    </h3>
+                    <div class="sources-grid" id="sourcesList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('questionForm');
+        const loading = document.getElementById('loading');
+        const resultSection = document.getElementById('resultSection');
+        const submitBtn = document.getElementById('submitBtn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const question = document.getElementById('question').value.trim();
+            const topK = parseInt(document.getElementById('topK').value);
+            
+            if (!question) {
+                alert('Please enter a question');
+                return;
+            }
+
+            // Show loading state
+            loading.style.display = 'block';
+            resultSection.style.display = 'none';
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+
+            try {
+                const response = await fetch('/api/ask', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        question: question,
+                        top_k: topK
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayStructuredResult(data);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                displayError('An error occurred while processing your question. Please try again.');
+            } finally {
+                // Hide loading state
+                loading.style.display = 'none';
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Ask Question';
+            }
+        });
+
+        function displayStructuredResult(data) {
+            // Update stats
+            document.getElementById('generationTime').textContent = `${data.generation_time.toFixed(2)}s`;
+            document.getElementById('totalSources').textContent = data.total_sources;
+            document.getElementById('confidencePercent').textContent = `${(data.confidence * 100).toFixed(1)}%`;
+            document.getElementById('searchTime').textContent = `${(data.generation_time * 0.3).toFixed(2)}s`; // Estimate
+            
+            // Set confidence badge
+            const confidenceBadge = document.getElementById('confidenceBadge');
+            const confidence = data.confidence;
+            
+            if (confidence >= 0.7) {
+                confidenceBadge.textContent = 'High Confidence';
+                confidenceBadge.className = 'confidence-badge';
+            } else if (confidence >= 0.4) {
+                confidenceBadge.textContent = 'Medium Confidence';
+                confidenceBadge.className = 'confidence-badge confidence-medium';
+            } else {
+                confidenceBadge.textContent = 'Low Confidence';
+                confidenceBadge.className = 'confidence-badge confidence-low';
+            }
+
+            // Format and display structured answer
+            const answerContent = document.getElementById('answerContent');
+            const formattedAnswer = formatAnswer(data.answer);
+            answerContent.innerHTML = formattedAnswer;
+
+            // Display sources
+            const sourcesList = document.getElementById('sourcesList');
+            const sourcesCount = document.getElementById('sourcesCount');
+            
+            sourcesCount.textContent = `(${data.sources.length} sources)`;
+            sourcesList.innerHTML = '';
+
+            data.sources.forEach((source, index) => {
+                const sourceElement = document.createElement('div');
+                sourceElement.className = 'source-item';
+                sourceElement.innerHTML = `
+                    <div class="source-header">
+                        <span class="source-file">📄 ${source.source_file}</span>
+                        <span class="source-score">Score: ${source.relevance_score.toFixed(4)}</span>
+                    </div>
+                    <div class="source-content">${source.content}</div>
+                `;
+                sourcesList.appendChild(sourceElement);
+            });
+
+            // Show result section
+            resultSection.style.display = 'block';
+            
+            // Scroll to results
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function formatAnswer(answer) {
+            // Split answer into paragraphs
+            const paragraphs = answer.split('\n\n').filter(p => p.trim());
+            
+            let formatted = '';
+            
+            paragraphs.forEach((paragraph, index) => {
+                const trimmed = paragraph.trim();
+                if (!trimmed) return;
+                
+                // Check if paragraph looks like a heading
+                if (trimmed.length < 100 && (trimmed.endsWith(':') || trimmed.endsWith('.') && trimmed.length < 80)) {
+                    formatted += `<h4>${trimmed}</h4>`;
+                } else {
+                    // Highlight key terms
+                    const highlighted = trimmed
+                        .replace(/\b(Vincent van Gogh|Van Gogh|Gogh)\b/gi, '<span class="highlight">$1</span>')
+                        .replace(/\b(Japanese|China|Chinese|Korean)\b/gi, '<span class="highlight">$1</span>')
+                        .replace(/\b(ceramics|pottery|porcelain|vase|bowl)\b/gi, '<span class="highlight">$1</span>')
+                        .replace(/\b(painting|artwork|masterpiece|exhibit)\b/gi, '<span class="highlight">$1</span>')
+                        .replace(/\b(\d{4})\b/g, '<span class="highlight">$1</span>');
+                    
+                    formatted += `<p>${highlighted}</p>`;
+                }
+            });
+            
+            return formatted || `<p>${answer}</p>`;
+        }
+
+        function displayError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error-message';
+            errorDiv.textContent = message;
+            
+            resultSection.innerHTML = '';
+            resultSection.appendChild(errorDiv);
+            resultSection.style.display = 'block';
+        }
+
+        // Auto-resize textarea
+        const textarea = document.getElementById('question');
+        textarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 200) + 'px';
+        });
+    </script>
+</body>
+</html> 
