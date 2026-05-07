@@ -1,19 +1,16 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional, Union
 import logging
 import uvicorn
-from rag_pipeline import RAGPipeline
-import config
+from src.rag_pipeline import RAGPipeline
+from src import config
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Initialize FastAPI app
 app = FastAPI(
     title="Museum Art RAG API",
     description="A REST API for answering questions about museum art and exhibits using RAG (Retrieval-Augmented Generation)",
@@ -22,10 +19,8 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
-# Initialize RAG pipeline
 rag_pipeline = None
 
-# Pydantic models for request/response validation
 class QuestionRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=1000, description="The question to ask about museum art and exhibits")
     top_k: Optional[int] = Field(default=5, ge=1, le=20, description="Number of relevant documents to retrieve (1-20)")
@@ -49,7 +44,6 @@ class HealthResponse(BaseModel):
 
 @app.on_event("startup")
 async def startup_event():
-    """Initialize RAG pipeline on startup"""
     global rag_pipeline
     try:
         logger.info("Initializing RAG pipeline...")
@@ -61,14 +55,13 @@ async def startup_event():
 
 @app.get("/", response_class=HTMLResponse)
 async def root(request: Request):
-    """Serve the main web interface"""
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
     """
     Check the health status of the API and RAG pipeline
-    
+
     Returns:
         HealthResponse: Status information about the API
     """
@@ -81,46 +74,43 @@ async def health_check():
 async def ask_question(request: QuestionRequest):
     """
     Ask a question about museum art and exhibits
-    
+
     This endpoint uses RAG (Retrieval-Augmented Generation) to:
     1. Search for relevant documents in the knowledge base
     2. Generate an answer based on the found information
     3. Return the answer along with source information
-    
+
     Args:
         request: QuestionRequest containing the question and optional parameters
-        
+
     Returns:
         QuestionResponse: Generated answer with sources and metadata
-        
+
     Raises:
         HTTPException: If RAG pipeline is not available or an error occurs
     """
     if rag_pipeline is None:
         raise HTTPException(
-            status_code=503, 
+            status_code=503,
             detail="RAG pipeline is not available. Please try again later."
         )
-    
+
     try:
         logger.info(f"Processing question: {request.question}")
-        
-        # Use the RAG pipeline to get the answer
+
         result = rag_pipeline.ask_question(
             question=request.question,
-            top_k=request.top_k or 5  # Provide default value if None
+            top_k=request.top_k or 5
         )
-        
-        # Convert sources to Pydantic models with proper type handling
+
         sources = []
         for source in result['sources']:
-            # Ensure chunk_id is properly handled (convert to string if needed)
             chunk_id = source.get('chunk_id', 'Unknown')
             if chunk_id is None:
                 chunk_id = 'Unknown'
             elif isinstance(chunk_id, (int, float)):
                 chunk_id = str(chunk_id)
-            
+
             source_info = SourceInfo(
                 content=source.get('content', ''),
                 source_file=source.get('source_file', 'Unknown'),
@@ -128,7 +118,7 @@ async def ask_question(request: QuestionRequest):
                 relevance_score=source.get('relevance_score', 0.0)
             )
             sources.append(source_info)
-        
+
         response = QuestionResponse(
             answer=result.get('answer', 'No answer generated'),
             sources=sources,
@@ -136,10 +126,10 @@ async def ask_question(request: QuestionRequest):
             total_sources=result.get('total_sources', len(sources)),
             generation_time=result.get('generation_time', 0.0)
         )
-        
+
         logger.info(f"Successfully processed question. Confidence: {result.get('confidence', 0.0):.4f}")
         return response
-        
+
     except Exception as e:
         logger.error(f"Error processing question: {e}")
         raise HTTPException(
@@ -151,14 +141,14 @@ async def ask_question(request: QuestionRequest):
 async def search_documents(query: str, top_k: int = 5):
     """
     Search for relevant documents without generating an answer
-    
+
     This endpoint only performs document retrieval without answer generation.
     Useful for exploring the knowledge base or debugging.
-    
+
     Args:
         query: Search query
         top_k: Number of documents to return (1-20)
-        
+
     Returns:
         List of relevant documents with metadata
     """
@@ -167,19 +157,19 @@ async def search_documents(query: str, top_k: int = 5):
             status_code=503,
             detail="RAG pipeline is not available. Please try again later."
         )
-    
+
     if not query or len(query.strip()) == 0:
         raise HTTPException(
             status_code=400,
             detail="Query cannot be empty"
         )
-    
+
     if top_k < 1 or top_k > 20:
         raise HTTPException(
             status_code=400,
             detail="top_k must be between 1 and 20"
         )
-    
+
     try:
         results = rag_pipeline.search_documents(query.strip(), top_k)
         return {
@@ -194,14 +184,13 @@ async def search_documents(query: str, top_k: int = 5):
             detail=f"Internal server error: {str(e)}"
         )
 
-# Initialize templates for web interface
 templates = Jinja2Templates(directory="templates")
 
 if __name__ == "__main__":
     uvicorn.run(
-        "api:app",
+        "src.api:app",
         host="0.0.0.0",
         port=8000,
         reload=True,
         log_level="info"
-    ) 
+    )

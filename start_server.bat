@@ -7,5 +7,5 @@ echo 2. Dependencies installed (pip install -r requirements.txt)
 echo 3. Environment variables set in .env file
 echo.
 echo Starting server...
-python run_server.py
-pause 
+python -m src.run_server
+pause

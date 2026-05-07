@@ -3,11 +3,9 @@ import json
 from typing import List, Dict, Any
 import tiktoken
 
-# Параметры чанков
-CHUNK_SIZE = 800  # средний размер чанка в токенах
-CHUNK_OVERLAP = 80  # overlap в токенах
+CHUNK_SIZE = 800
+CHUNK_OVERLAP = 80
 
-# Инициализация токенизатора (gpt-3.5-turbo)
 enc = tiktoken.get_encoding('cl100k_base')
 
 def get_all_json_files(root_dir: str) -> List[str]:
@@ -36,7 +34,6 @@ def extract_text_from_exhibition(data: Dict[str, Any]) -> str:
         data.get('public_info', ''),
         data.get('display_date', '')
     ]
-    # venues
     venues = data.get('venues', [])
     for v in venues:
         if isinstance(v, dict):
@@ -66,14 +63,12 @@ def main():
             with open(file_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         except Exception as e:
-            print(f"Ошибка чтения {file_path}: {e}")
+            print(f"Error reading {file_path}: {e}")
             continue
-        # Если data — список, обрабатываем каждый элемент
         data_items = data if isinstance(data, list) else [data]
         for item in data_items:
             if not isinstance(item, dict):
                 continue
-            # Определяем тип файла по пути
             if '/departments/' in file_path.replace('\\', '/').lower():
                 text = extract_text_from_department(item)
             elif '/objects/' in file_path.replace('\\', '/').lower():
@@ -90,10 +85,9 @@ def main():
                         'chunk_id': i,
                         'text': chunk
                     })
-    # Сохраняем чанки в файл
     with open('data_chunks.json', 'w', encoding='utf-8') as f:
         json.dump(all_chunks, f, ensure_ascii=False, indent=2)
-    print(f"Сохранено чанков: {len(all_chunks)}")
+    print(f"Saved chunks: {len(all_chunks)}")
 
 if __name__ == '__main__':
-    main() 
+    main()
